@@ -2,72 +2,27 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { Request, Response } from 'express';
 import { parse } from 'csv-parse/sync';
+import {
+    Agency,
+    Stop,
+    Route,
+    Trip,
+    StopTime,
+    Transfer,
+    Shape,
+    Calendar
+} from './types';
 
-// GTFS Interfaces
-interface Agency {
-    agency_id: string;
-    agency_name: string;
-    agency_url: string;
-    agency_timezone: string;
-    agency_lang?: string;
-    agency_phone?: string;
-}
-
-interface Stop {
-    stop_id: string;
-    stop_code?: string;
-    stop_name: string;
-    stop_lat: number;
-    stop_lon: number;
-    zone_id?: string;
-}
-
-interface Route {
-    route_id: string;
-    agency_id?: string;
-    route_short_name: string;
-    route_long_name: string;
-    route_type: number;
-    route_color?: string;
-    route_text_color?: string;
-}
-
-interface Trip {
-    trip_id: string;
-    route_id: string;
-    service_id: string;
-    trip_headsign?: string;
-    direction_id?: number;
-    shape_id?: string;
-}
-
-interface StopTime {
-    trip_id: string;
-    arrival_time: string;
-    departure_time: string;
-    stop_id: string;
-    stop_sequence: number;
-}
-
-declare global {
-    namespace Express {
-        interface Request {
-            datasetId: string;
-        }
-    }
-}
-
-export const createUploadsFolder = async () => {
-    console.log('Creating uploads folder...');
+export const createDataFolder = async () => {
     try {
-        await fs.mkdir('uploads/datasets', { recursive: true });
+        await fs.mkdir('data', { recursive: true });
     } catch (error) {
-        console.error('Error creating uploads folder:', error);
+        console.error('Error creating data folder:', error);
     }
 };
 
 const getDatasetPath = (datasetId: string) => {
-    return path.join('uploads/datasets', datasetId);
+    return path.join('data', datasetId);
 };
 
 const readGTFSFile = async <T>(datasetId: string, fileName: string): Promise<T[]> => {
@@ -113,7 +68,6 @@ export const controller = {
             });
         } catch (error) {
             console.error('Upload error:', error);
-            // Cleanup failed upload
             await fs.rm(datasetPath, { recursive: true, force: true });
             res.status(500).json({ error: 'Error processing files' });
         }
@@ -159,6 +113,33 @@ export const controller = {
         try {
             const stopTimes = await readGTFSFile<StopTime>(req.datasetId, 'stop_times.txt');
             res.json(stopTimes);
+        } catch (error) {
+            res.status(404).json({ error: error.message });
+        }
+    },
+
+    getTransfers: async (req: Request, res: Response) => {
+        try {
+            const transfers = await readGTFSFile<Transfer>(req.datasetId, 'transfers.txt');
+            res.json(transfers);
+        } catch (error) {
+            res.status(404).json({ error: error.message });
+        }
+    },
+
+    getShapes: async (req: Request, res: Response) => {
+        try {
+            const shapes = await readGTFSFile<Shape>(req.datasetId, 'shapes.txt');
+            res.json(shapes);
+        } catch (error) {
+            res.status(404).json({ error: error.message });
+        }
+    },
+
+    getCalendar: async (req: Request, res: Response) => {
+        try {
+            const calendar = await readGTFSFile<Calendar>(req.datasetId, 'calendar.txt');
+            res.json(calendar);
         } catch (error) {
             res.status(404).json({ error: error.message });
         }
